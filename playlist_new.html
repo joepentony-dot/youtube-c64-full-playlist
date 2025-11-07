@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My YouTube Playlist</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; }
+  .section { margin-bottom: 20px; }
+  .section h2 { cursor: pointer; }
+  .games { display: none; margin-left: 20px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+</style>
+</head>
+<body>
+
+<h1>My YouTube Playlist</h1>
+<div id="playlist-container"></div>
+
+<script>
+const API_KEY = "AIzaSyABtgqVHmOrfzw2DLE-3ta3OmlaQ0ad_t8";  
+const PLAYLIST_ID = "PL_TYjnCNYSex7dxxCMMuOsjzcXE1VNiR9";
+const container = document.getElementById("playlist-container");
+
+async function fetchPlaylist() {
+    let videos = [];
+    let nextPageToken = "";
+    
+    do {
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&pageToken=${nextPageToken}&playlistId=${PLAYLIST_ID}&key=${API_KEY}`);
+        const data = await res.json();
+        if (data.error) {
+            container.innerHTML = `<p style="color:red;">Failed to load playlist: ${data.error.message}</p>`;
+            return;
+        }
+        videos = videos.concat(data.items.map(item => ({
+            title: item.snippet.title,
+            url: `https://www.youtube.com/watch?v=${item.snippet.resourceId.videoId}`
+        })));
+        nextPageToken = data.nextPageToken || "";
+    } while(nextPageToken);
+
+    displayPlaylist(videos);
+}
+
+function displayPlaylist(videos) {
+    // Alphabetical order ignoring "The"
+    videos.sort((a, b) => {
+        const titleA = a.title.replace(/^the\s+/i, "");
+        const titleB = b.title.replace(/^the\s+/i, "");
+        return titleA.localeCompare(titleB);
+    });
+
+    const sections = {};
+    videos.forEach(video => {
+        const firstChar = video.title[0].toUpperCase();
+        if (!sections[firstChar]) sections[firstChar] = [];
+        sections[firstChar].push(video);
+    });
+
+    container.innerHTML = "";
+    Object.keys(sections).sort().forEach(letter => {
+        const sectionDiv = document.createElement("div");
+        sectionDiv.className = "section";
+        const header = document.createElement("h2");
+        header.textContent = letter;
+        header.onclick = () => gamesDiv.style.display = gamesDiv.style.display === "none" ? "block" : "none";
+        sectionDiv.appendChild(header);
+
+        const gamesDiv = document.createElement("div");
+        gamesDiv.className = "games";
+        const table = document.createElement("table");
+        const tbody = document.createElement("tbody");
+
+        sections[letter].forEach(video => {
+            const row = document.createElement("tr");
+            const titleCell = document.createElement("td");
+            titleCell.textContent = video.title;
+            const linkCell = document.createElement("td");
+            const a = document.createElement("a");
+            a.href = video.url;
+            a.target = "_blank";
+            a.textContent = "Watch";
+            linkCell.appendChild(a);
+            row.appendChild(titleCell);
+            row.appendChild(linkCell);
+            tbody.appendChild(row);
+        });
+
+        table.appendChild(tbody);
+        gamesDiv.appendChild(table);
+        sectionDiv.appendChild(gamesDiv);
+        container.appendChild(sectionDiv);
+    });
+}
+
+fetchPlaylist();
+</script>
+
+</body>
+</html>
