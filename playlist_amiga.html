@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" style="margin:0;padding:0;height:100%;overflow:hidden;">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>All Amiga Games</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;font-family:'Courier New',monospace;background:linear-gradient(45deg,#0b0c17,#1a1a2e);color:#00ffff;display:flex;flex-direction:column;overflow:hidden;}
+.container{width:100%;max-width:900px;margin:0 auto;padding:16px;display:flex;flex-direction:column;overflow:hidden;}
+.header-banner{background:#000033;border:3px solid #00ffff;border-radius:12px;padding:15px;margin-bottom:12px;box-shadow:0 0 25px #00ffff,inset 0 0 30px rgba(0,255,255,.1);text-align:center;flex-shrink:0;}
+.header-title{font-size:22px;color:#00ffff;text-shadow:0 0 12px #00ffff,0 0 25px #00ffff;letter-spacing:2px;animation:neonGlow 2s infinite alternate;}
+@keyframes neonGlow{from{text-shadow:0 0 12px #00ffff,0 0 25px #00ffff}to{text-shadow:0 0 18px #00ffff,0 0 35px #00ffff,0 0 45px #00ffff}}
+.prompt{color:#66ccff;font-size:14px;text-align:center;margin-bottom:12px;font-style:italic;}
+#playlist-container{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 8px;}
+#playlist-container::-webkit-scrollbar{display:none;}
+.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:999;}
+.loader{border:5px solid #333; border-top:5px solid #00ffff; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite;}
+@keyframes spin {100% { transform: rotate(360deg); }}
+.progress-bar{width:60%;height:10px;background:#222;border:2px solid #00ffff;border-radius:6px;margin-top:20px;overflow:hidden;}
+.progress-fill{width:0%;height:100%;background:#00ffff;border-radius:6px;}
+.section{margin-bottom:16px;}
+.section h2{cursor:pointer;font-size:18px;color:#00ffff;text-shadow:0 0 8px #00ffff; border-bottom: 1px solid #00ffff; padding-bottom:4px;}
+.games{display:none;margin-left:20px;margin-top:6px;}
+table{border-collapse:collapse;width:100%;}
+th, td{border:1px solid #00ffff;padding:6px;text-align:left;color:#00ffff;}
+a{color:#00ffff;text-decoration:none;}
+a:hover{color:#FFD700;}
+</style>
+</head>
+<body>
+
+<div class="container" id="mainContainer">
+  <div class="header-banner">
+    <h1 class="header-title">🕹️ All Amiga Games On The Channel 🕹️</h1>
+  </div>
+  <p class="prompt">Click a letter below to see the full listing!</p>
+  <div id="playlist-container"></div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loader"></div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <p style="color:#00ffff;margin-top:12px;">Loading playlist…</p>
+</div>
+
+<script>
+const API_KEY = "AIzaSyABtgqVHmOrfzw2DLE-3ta3OmlaQ0ad_t8";  
+const PLAYLIST_ID = "PL_TYjnCNYSezw55SVAMN2_UhdH3gCca1n"; // Amiga playlist
+const container = document.getElementById("playlist-container");
+const overlay = document.getElementById("loadingOverlay");
+const progressFill = document.getElementById("progressFill");
+
+async function fetchPlaylist() {
+    let videos = [];
+    let nextPageToken = "";
+    let loaded = 0;
+    const totalExpected = 50; // rough estimate for progress
+
+    try {
+        do {
+            const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&pageToken=${nextPageToken}&playlistId=${PLAYLIST_ID}&key=${API_KEY}`);
+            const data = await res.json();
+
+            if (data.error) {
+                container.innerHTML = `<p style="color:red;">Failed to load playlist: ${data.error.message}</p>`;
+                overlay.style.display = "none";
+                return;
+            }
+
+            if (!data.items) {
+                container.innerHTML = `<p style="color:red;">No playlist items found.</p>`;
+                overlay.style.display = "none";
+                return;
+            }
+
+            videos = videos.concat(data.items.map(item => ({
+                title: item.snippet.title,
+                url: `https://www.youtube.com/watch?v=${item.snippet.resourceId.videoId}`
+            })));
+
+            loaded += data.items.length;
+            const progress = Math.min((loaded / totalExpected) * 100, 100);
+            progressFill.style.width = progress + "%";
+
+            nextPageToken = data.nextPageToken || "";
+        } while (nextPageToken);
+
+        displayPlaylist(videos);
+        overlay.style.display = "none";
+    } catch (err) {
+        console.error("Fetch failed:", err);
+        container.innerHTML = `<p style="color:red;">Failed to load playlist due to network error.</p>`;
+        overlay.style.display = "none";
+    }
+}
+
+function displayPlaylist(videos) {
+    videos.sort((a, b) => {
+        const titleA = a.title.replace(/^the\s+/i, "");
+        const titleB = b.title.replace(/^the\s+/i, "");
+        return titleA.localeCompare(titleB);
+    });
+
+    const sections = {};
+    videos.forEach(video => {
+        const firstChar = video.title[0].toUpperCase();
+        if (!sections[firstChar]) sections[firstChar] = [];
+        sections[firstChar].push(video);
+    });
+
+    container.innerHTML = "";
+    Object.keys(sections).sort().forEach(letter => {
+        const sectionDiv = document.createElement("div");
+        sectionDiv.className = "section";
+
+        const header = document.createElement("h2");
+        header.textContent = letter;
+
+        const gamesDiv = document.createElement("div");
+        gamesDiv.className = "games";
+
+        header.onclick = () => {
+            gamesDiv.style.display = gamesDiv.style.display === "none" ? "block" : "none";
+        };
+
+        const table = document.createElement("table");
+        const tbody = document.createElement("tbody");
+
+        sections[letter].forEach(video => {
+            const row = document.createElement("tr");
+            const titleCell = document.createElement("td");
+            titleCell.textContent = video.title;
+
+            const linkCell = document.createElement("td");
+            const a = document.createElement("a");
+            a.href = video.url;
+            a.target = "_blank";
+            a.textContent = "Watch";
+            linkCell.appendChild(a);
+
+            row.appendChild(titleCell);
+            row.appendChild(linkCell);
+            tbody.appendChild(row);
+        });
+
+        table.appendChild(tbody);
+        gamesDiv.appendChild(table);
+        sectionDiv.appendChild(header);
+        sectionDiv.appendChild(gamesDiv);
+        container.appendChild(sectionDiv);
+    });
+}
+
+fetchPlaylist();
+</script>
+
+</body>
+</html>
